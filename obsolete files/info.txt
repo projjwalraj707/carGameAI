@@ -1,0 +1,1 @@
+This folder contains files that were used for learning or experimenting while creating game or files that are earlier version of some file and thus they are no longer of use and have been moved it.

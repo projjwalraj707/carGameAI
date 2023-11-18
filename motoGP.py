@@ -1,6 +1,6 @@
 import pygame
 import math
-# import Enum
+from road import display_pixels
 pygame.init()
 
 CLOCK_SPEED = 60
@@ -10,7 +10,6 @@ BIKE_HEIGHT = 30
 DISPLAY_WIDTH = 1350
 DISPLAY_HEIGHT = 700
 HEAD_RAD = 4
-#Defining Colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (200, 0, 0)
@@ -34,6 +33,7 @@ class Bike:
 		self.velocity = 0
 		self.max_velocity = 7
 		self.acc = 0.1
+		self.drag = 0.05 #deceleration due to drag
 		self.rotation = 3
 	
 	def polygonify(self):
@@ -64,6 +64,11 @@ class Bike:
 		self.velocity = max(self.velocity, -self.max_velocity)
 	
 	def move(self):
+		if self.velocity>0:
+			self.velocity -= self.drag
+		elif self.velocity<0:
+			self.velocity += self.drag
+			
 		x = self.center[0]
 		y = self.center[1]
 		x += self.velocity*(math.sin(math.pi*self.tilt/180))
