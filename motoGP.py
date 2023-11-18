@@ -63,7 +63,19 @@ class Bike:
 		self.velocity -= self.acc
 		self.velocity = max(self.velocity, -self.max_velocity)
 	
+	def goBack(self, isNeg):
+		x = self.center[0]
+		y = self.center[1]
+		x += (1 if isNeg else -1)*2*(math.sin(math.pi*self.tilt/180))
+		y -= (1 if isNeg else -1)*2*(math.cos(math.pi*self.tilt/180))
+		x = min(x, DISPLAY_WIDTH-5)
+		x = max(0, x)
+		y = min(y, DISPLAY_HEIGHT-5)
+		y = max(0, y)
+		self.center = [x, y]
+
 	def move(self):
+		#Decrease velocity due to drag
 		if self.velocity>0:
 			self.velocity -= self.drag
 		elif self.velocity<0:
@@ -78,6 +90,11 @@ class Bike:
 		y = min(y, DISPLAY_HEIGHT-5)
 		y = max(0, y)
 		self.center = [x, y]
+		if display_pixels[int(self.center[1])][int(self.center[0])] == (-1, -1):
+			while display_pixels[int(self.center[1])][int(self.center[0])] == (-1, -1):
+				isNeg = self.velocity<0
+				self.goBack(isNeg)
+			self.velocity = -self.velocity/2
 
 	def rotate(self, right):
 		if (right == True):
@@ -93,7 +110,7 @@ class MotoGPGame:
 		self.display = pygame.display.set_mode((self.w, self.h))
 		pygame.display.set_caption("MotoGP")
 		self.clock = pygame.time.Clock()
-		self.bike1 = Bike(w/2, h/2)
+		self.bike1 = Bike(w/2+20, h/2)
 
 	def play_step(self):
 		#1. Collecting user input
@@ -125,7 +142,6 @@ class MotoGPGame:
 		self.clock.tick(CLOCK_SPEED)
 
 	def update_ui(self):
-		# self.display.fill(BLACK)
 		pygame.draw.polygon(self.display, BLUE1, self.bike1.polygonify())
 		pygame.draw.circle(self.display, RED, self.bike1.findHead(), HEAD_RAD)
 		pygame.display.flip()
