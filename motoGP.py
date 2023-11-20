@@ -1,4 +1,5 @@
 import math
+import torch
 import numpy as np
 from road import display_pixels
 import pygame
@@ -38,9 +39,11 @@ class Bike:
 		self.head = (0, 0)
 		self.velocity = 0
 		self.max_velocity = 7
-		self.acc = 0.1
+		self.acc = 1
 		self.drag = 0.05 #deceleration due to drag
 		self.rotation = 3
+		self.visited = [[0] * DISPLAY_WIDTH for _ in range(DISPLAY_HEIGHT)]
+		self.didCrashed = 0
 	
 	def polygonify(self):
 		x, y = self.center[1], self.center[0]
@@ -82,6 +85,7 @@ class Bike:
 
 	def move(self):
 		#Decrease velocity due to drag
+		self.didCrashed = 0
 		if self.velocity>0:
 			self.velocity -= self.drag
 			self.velocity = max(0, self.velocity) # make sure the velocity does not oscillate between -ve and +ve when it is standing still
@@ -99,6 +103,7 @@ class Bike:
 		y = max(0, y)
 		self.center = [y, x]
 		if display_pixels[int(self.center[0])][int(self.center[1])] == (-1, -1):
+			self.didCrashed = 1
 			while display_pixels[int(self.center[0])][int(self.center[1])] == (-1, -1):
 				isNeg = self.velocity<0
 				self.goBack(isNeg)
@@ -110,6 +115,19 @@ class Bike:
 		else:
 			self.tilt -= self.rotation
 		self.tilt = self.tilt % 360
+	
+	def getReward(self):
+		ans = -1 #negative reward with each frame
+		if self.velocity<=0:
+			ans -= 3  #negative reward for not moving or moving in the backdirection
+		else:
+			ans += (self.velocity/7)*20
+		if not self.visited[int(self.center[0])][int(self.center[1])]:
+			ans += 20
+			self.visited[int(self.center[0])][int(self.center[1])] = 1
+		if self.didCrashed == 1:
+			ans -= 100
+		return ans
 
 class MotoGPGame:
 	def __init__(self, w=DISPLAY_WIDTH, h=DISPLAY_HEIGHT):
@@ -121,7 +139,11 @@ class MotoGPGame:
 		self.bike1 = Bike(START_X, START_Y)
 		self.n_actions = 9 # total 9 actions can be taken for each step
 		self.n_obs = 41 # size of state
-
+	
+	def reset(self):
+		self.bike1 = Bike(START_X, START_Y)
+		return self.getState()
+	
 	def getObsInfo(self, tilt): # returns the distance of the obstacle present at tilt degrees from the bike
 		lastX, lastY = self.bike1.center[0], self.bike1.center[1]
 		dist = 0
@@ -147,11 +169,13 @@ class MotoGPGame:
 			state.append(val[0])
 			state.append(val[1])
 		state.append(self.bike1.velocity)
-		return np.array(state)
+		return torch.tensor(state)
+
+
 
 	def play_stepAI(self, action):
-		game.display.blit(TRACK_IMG, (0, 0))
-		game.display.blit(FINISH_LINE, (START_Y-23, START_X-37))
+		self.display.blit(TRACK_IMG, (0, 0))
+		self.display.blit(FINISH_LINE, (START_Y-23, START_X-37))
 		#1. Collecting user input
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
@@ -175,7 +199,7 @@ class MotoGPGame:
 			self.bike1.rotate(0)
 		elif action == 5:
 			# press w and d
-			self.bik1.accelerate()
+			self.bike1.accelerate()
 			self.bike1.rotate(1)
 		elif action == 6:
 			#press s and a
@@ -191,11 +215,12 @@ class MotoGPGame:
 		self.bike1.move()
 		self.update_ui()
 		self.clock.tick(CLOCK_SPEED)
-		return self.getState()
+		# return state, reward, done
+		return self.getState(), self.bike1.getReward(), (1 if self.bike1.didCrashed else 0)
 
 	def play_step(self):
-		game.display.blit(TRACK_IMG, (0, 0))
-		game.display.blit(FINISH_LINE, (START_Y-23, START_X-37))
+		self.display.blit(TRACK_IMG, (0, 0))
+		self.display.blit(FINISH_LINE, (START_Y-23, START_X-37))
 		#1. Collecting user input
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:

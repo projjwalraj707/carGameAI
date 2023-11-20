@@ -51,7 +51,7 @@ def Dijkstra():
 	print("dijkstra ends here")
 
 
-# Dijkstra()
+Dijkstra()
 # print(display_pixels)
 
 if __name__ == '__main__':
