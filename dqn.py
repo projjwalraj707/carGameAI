@@ -70,8 +70,15 @@ target_net.load_state_dict(policy_net.state_dict())
 
 optimizer = optim.AdamW(policy_net.parameters(), lr=1e-4, amsgrad=True)
 
-steps_done = 0 
+load = False
+if load:
+    checkpoint = torch.load('saved_models/saved.pth')
+    if checkpoint:
+        policy_net.load_state_dict(checkpoint['policy_net_state_dict'])
+        target_net.load_state_dict(checkpoint['target_net_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
+steps_done = 0 
 
 def select_action(state):
     global steps_done
@@ -137,7 +144,7 @@ def optimize_model():
 if torch.cuda.is_available():
     num_episodes = 600
 else:
-    num_episodes = 50
+    num_episodes = 500
 
 
 # Training starts here 
@@ -173,7 +180,24 @@ for i_episode in range(num_episodes):
             target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
         target_net.load_state_dict(target_net_state_dict)
         if done:
+            print(t)
+            print(sum(env.bike1.checkPoints))
+            if (i_episode%100 == 0):
+                torch.save({
+                    'policy_net_state_dict': policy_net.state_dict(),
+                    'target_net_state_dict': target_net.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    },
+                    'saved_models/saved_pth'
+                )
             break
 
+torch.save({
+    'policy_net_state_dict': policy_net.state_dict(),
+    'target_net_state_dict': target_net.state_dict(),
+    'optimizer_state_dict': optimizer.state_dict(),
+    },
+    'saved_models/saved_pth'
+)
 
 print('Complete')

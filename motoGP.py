@@ -39,11 +39,12 @@ class Bike:
 		self.head = (0, 0)
 		self.velocity = 0
 		self.max_velocity = 7
-		self.acc = 1
+		self.acc = 0.7
 		self.drag = 0.05 #deceleration due to drag
 		self.rotation = 3
-		self.visited = [[0] * DISPLAY_WIDTH for _ in range(DISPLAY_HEIGHT)]
+		# self.visited = [[0] * DISPLAY_WIDTH for _ in range(DISPLAY_HEIGHT)]
 		self.didCrashed = 0
+		self.checkPoints = [0]*7
 	
 	def polygonify(self):
 		x, y = self.center[1], self.center[0]
@@ -108,6 +109,15 @@ class Bike:
 				isNeg = self.velocity<0
 				self.goBack(isNeg)
 			self.velocity = -self.velocity/2
+		else:
+			if self.center[1]>800:
+				self.checkPoints[0] = 1
+			if self.center[1]>1000:
+				self.checkPoints[1] = 1
+			if self.center[1]>1200:
+				self.checkPoints[2] = 1
+			if self.center[0]<=590 and self.center[1]>800:
+				self.checkPoints[3] = 1
 
 	def rotate(self, right):
 		if (right == True):
@@ -118,15 +128,28 @@ class Bike:
 	
 	def getReward(self):
 		ans = -1 #negative reward with each frame
+		
+		#negative reward for not moving or moving in the back direction else positive reward
 		if self.velocity<=0:
-			ans -= 3  #negative reward for not moving or moving in the backdirection
+			ans -= 100
 		else:
-			ans += (self.velocity/7)*20
-		if not self.visited[int(self.center[0])][int(self.center[1])]:
-			ans += 20
-			self.visited[int(self.center[0])][int(self.center[1])] = 1
+			ans += (self.velocity/7)*50
+
+		# if not self.visited[int(self.center[0])][int(self.center[1])]:
+		# 	ans += 20
+		# 	self.visited[int(self.center[0])][int(self.center[1])] = 1
+		
+		#check for crashing condition
 		if self.didCrashed == 1:
 			ans -= 100
+
+		#check distance from the center
+		cX, cY = display_pixels[int(self.center[0])][int(self.center[1])]
+		distFromCenter = math.sqrt((self.center[0]-cX)**2 + (self.center[1]-cY)**2)
+		ans += (30-distFromCenter)*10
+
+		# checkpoint-based reward
+		ans += (sum(self.checkPoints))*80
 		return ans
 
 class MotoGPGame:
@@ -149,7 +172,7 @@ class MotoGPGame:
 		dist = 0
 		foundObs = 0
 		for i in range(1, 100, 3):
-			dist += 1
+			dist += 3
 			newX = self.bike1.center[0] + i*(math.sin(math.pi*tilt/180))
 			newY = self.bike1.center[1] - i*(math.cos(math.pi*tilt/180))
 			if newX<=0 or newY<=0 or newX>=DISPLAY_HEIGHT or newY>=DISPLAY_WIDTH or display_pixels[int(newX)][int(newY)] == (-1, -1):
@@ -157,7 +180,7 @@ class MotoGPGame:
 				break
 			lastX, lastY = newX, newY
 		
-		if foundObs:
+		if not foundObs:
 			dist = 1000
 		obsCenter = display_pixels[int(lastX)][int(lastY)]
 		return (dist, math.atan2((lastY-obsCenter[1]), (lastX-obsCenter[0])))
@@ -232,6 +255,11 @@ class MotoGPGame:
 		elif keys[pygame.K_d]:
 			self.bike1.rotate(1)
 		if keys[pygame.K_w]: # Only one of 'w' and 's' will be registered
+			print('hihiihhihihi')
+			print(self.getObsInfo(self.bike1.tilt + 0))
+			print(self.getObsInfo(self.bike1.tilt + 90))
+			print(self.getObsInfo(self.bike1.tilt + 180))
+			print(self.getObsInfo(self.bike1.tilt + 270))
 			self.bike1.accelerate()
 		elif keys[pygame.K_s]:
 			self.bike1.decelerate()
