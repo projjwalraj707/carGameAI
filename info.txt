@@ -1,0 +1,24 @@
+Independent parameters or different dimensions:
+1. velocity
+-. 
+	2. values at 0 degrees : 
+	3. values at 18 degrees
+	4. values at 36 degrees
+	.
+	.
+	.
+	19. values at 306 degrees
+	20. values at 324 degrees
+	21. values at 342 degrees
+
+
+    States          Values                            Number of possible values
+1. velocity:      (-7, -6, ..., 0, ..., 7)                15
+2. 
+
+
+
+
+velocity * (distance of obstacle, slope)*20 *  = 41
+env.done
+env.State

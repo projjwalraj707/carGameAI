@@ -1,26 +1,31 @@
-import pygame
 import math
 from road import display_pixels
+import pygame
 pygame.init()
 
-CLOCK_SPEED = 60
-BLOCK_SIZE = 10
+#ENVIRONMENT
+TRACK_IMG = pygame.image.load("img/TRACK.png")
+FINISH_LINE = pygame.image.load("img/race_flag_start.png")
+FINISH_LINE = pygame.transform.scale(FINISH_LINE, (80, 50))
+FINISH_LINE = pygame.transform.rotate(FINISH_LINE, 90)
 BIKE_WIDTH = 15
 BIKE_HEIGHT = 30
+HEAD_RAD = 4
+START_X = 700
+START_Y = 631
+
+#PYGAME
+CLOCK_SPEED = 60
+BLOCK_SIZE = 10
 DISPLAY_WIDTH = 1350
 DISPLAY_HEIGHT = 700
-HEAD_RAD = 4
+
+#COLORS
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (200, 0, 0)
 BLUE1 = (0, 0, 250)
 BLUE2 = (0, 0, 120)
-TRACK_IMG = pygame.image.load("img/TRACK.png")
-
-class Point:
-	def __init__(self, x, y):
-		self.x=0
-		self.y=0
 
 class Bike:
 	def __init__(self, x, y, tilt = 90):
@@ -78,8 +83,10 @@ class Bike:
 		#Decrease velocity due to drag
 		if self.velocity>0:
 			self.velocity -= self.drag
+			self.velocity = max(0, self.velocity) # make sure the velocity does not oscillate between -ve and +ve when it is standing still
 		elif self.velocity<0:
 			self.velocity += self.drag
+			self.velocity = min(0, self.velocity)
 			
 		x = self.center[0]
 		y = self.center[1]
@@ -110,29 +117,39 @@ class MotoGPGame:
 		self.display = pygame.display.set_mode((self.w, self.h))
 		pygame.display.set_caption("MotoGP")
 		self.clock = pygame.time.Clock()
-		self.bike1 = Bike(w/2+20, h/2)
+		self.bike1 = Bike(START_X, START_Y)
+		self.n_actions = 9 # total 9 actions can be taken for each step
+		self.n_obs = 41 # size of state
+
+	def getObsInfo(self, tilt): # returns the distance of the obstacle present at tilt degrees from the bike
+		lastX, lastY = self.bike1.center[0], self.bike1.center[1]
+		dist = 0
+		for i in range(100):
+			dist += 1
+			newX = self.bike1.center[0] + i*(math.sin(math.pi*tilt/180))
+			newY = self.bike1.center[1] - i*(math.cos(math.pi*tilt/180))
+			if display_pixels[newY][newX] == (-1, -1) or newX<=0 or newY<=0 or newX>=DISPLAY_WIDTH or newY>=DISPLAY_HEIGHT:
+				break
+			lastX, lastY = newX, newY
+		obsCenter = display_pixels[lastY][lastX]
+		
+		return (dist, ())
+		
 
 	def play_step(self):
+		game.display.blit(TRACK_IMG, (0, 0))
+		game.display.blit(FINISH_LINE, (START_X-23, START_Y-37))
 		#1. Collecting user input
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
 				pygame.quit()
 				quit()
-			if event.type == pygame.KEYDOWN:
-				if event.key == pygame.K_a:
-					self.bike1.rotate(0)
-				elif event.key == pygame.K_d:
-					self.bike1.rotate(1)
-				elif event.key == pygame.K_w:
-					self.bike1.accelerate()
-				elif event.key == pygame.K_s:
-					self.bike1.decelerate();
 		keys = pygame.key.get_pressed()
-		if keys[pygame.K_a]:
+		if keys[pygame.K_a]: # Only one of 'a' and 'd' will be registered
 			self.bike1.rotate(0)
-		if keys[pygame.K_d]:
+		elif keys[pygame.K_d]:
 			self.bike1.rotate(1)
-		if keys[pygame.K_w]:
+		if keys[pygame.K_w]: # Only one of 'w' and 's' will be registered
 			self.bike1.accelerate()
 		elif keys[pygame.K_s]:
 			self.bike1.decelerate()
@@ -146,10 +163,8 @@ class MotoGPGame:
 		pygame.draw.circle(self.display, RED, self.bike1.findHead(), HEAD_RAD)
 		pygame.display.flip()
 
-
 if __name__ == '__main__':
 	game = MotoGPGame()
 	while True:
-		game.display.blit(TRACK_IMG, (0, 0))
 		game.play_step()
 	pygame.quit()

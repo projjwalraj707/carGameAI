@@ -52,6 +52,7 @@ def Dijkstra():
 
 
 Dijkstra()
+# print(display_pixels)
 
 if __name__ == '__main__':
 	import pygame
