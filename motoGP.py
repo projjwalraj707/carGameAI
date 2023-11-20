@@ -1,4 +1,5 @@
 import math
+import numpy as np
 from road import display_pixels
 import pygame
 pygame.init()
@@ -11,8 +12,8 @@ FINISH_LINE = pygame.transform.rotate(FINISH_LINE, 90)
 BIKE_WIDTH = 15
 BIKE_HEIGHT = 30
 HEAD_RAD = 4
-START_X = 700
-START_Y = 631
+START_Y = 700
+START_X = 631
 
 #PYGAME
 CLOCK_SPEED = 60
@@ -42,7 +43,7 @@ class Bike:
 		self.rotation = 3
 	
 	def polygonify(self):
-		x, y = self.center[0], self.center[1]
+		x, y = self.center[1], self.center[0]
 		pp = pygame.math.Vector2((x, y))
 		points = (
 			(x-BIKE_WIDTH/2, y+BIKE_HEIGHT/2),
@@ -55,9 +56,9 @@ class Bike:
 		]
 
 	def findHead(self):
-		headX = self.center[0]
-		headY = self.center[1]-BIKE_HEIGHT*0.25
-		pp = pygame.math.Vector2((self.center[0], self.center[1]))
+		headX = self.center[1]
+		headY = self.center[0]-BIKE_HEIGHT*0.25
+		pp = pygame.math.Vector2((self.center[1], self.center[0]))
 		return (pygame.math.Vector2(headX, headY) - pp).rotate(self.tilt) + pp
 	
 	def accelerate(self):
@@ -69,15 +70,15 @@ class Bike:
 		self.velocity = max(self.velocity, -self.max_velocity)
 	
 	def goBack(self, isNeg):
-		x = self.center[0]
-		y = self.center[1]
+		x = self.center[1]
+		y = self.center[0]
 		x += (1 if isNeg else -1)*2*(math.sin(math.pi*self.tilt/180))
 		y -= (1 if isNeg else -1)*2*(math.cos(math.pi*self.tilt/180))
 		x = min(x, DISPLAY_WIDTH-5)
 		x = max(0, x)
 		y = min(y, DISPLAY_HEIGHT-5)
 		y = max(0, y)
-		self.center = [x, y]
+		self.center = [y, x]
 
 	def move(self):
 		#Decrease velocity due to drag
@@ -88,17 +89,17 @@ class Bike:
 			self.velocity += self.drag
 			self.velocity = min(0, self.velocity)
 			
-		x = self.center[0]
-		y = self.center[1]
+		x = self.center[1]
+		y = self.center[0]
 		x += self.velocity*(math.sin(math.pi*self.tilt/180))
 		y -= self.velocity*(math.cos(math.pi*self.tilt/180))
 		x = min(x, DISPLAY_WIDTH-5)
 		x = max(0, x)
 		y = min(y, DISPLAY_HEIGHT-5)
 		y = max(0, y)
-		self.center = [x, y]
-		if display_pixels[int(self.center[1])][int(self.center[0])] == (-1, -1):
-			while display_pixels[int(self.center[1])][int(self.center[0])] == (-1, -1):
+		self.center = [y, x]
+		if display_pixels[int(self.center[0])][int(self.center[1])] == (-1, -1):
+			while display_pixels[int(self.center[0])][int(self.center[1])] == (-1, -1):
 				isNeg = self.velocity<0
 				self.goBack(isNeg)
 			self.velocity = -self.velocity/2
@@ -124,21 +125,77 @@ class MotoGPGame:
 	def getObsInfo(self, tilt): # returns the distance of the obstacle present at tilt degrees from the bike
 		lastX, lastY = self.bike1.center[0], self.bike1.center[1]
 		dist = 0
-		for i in range(100):
+		foundObs = 0
+		for i in range(1, 100, 3):
 			dist += 1
 			newX = self.bike1.center[0] + i*(math.sin(math.pi*tilt/180))
 			newY = self.bike1.center[1] - i*(math.cos(math.pi*tilt/180))
-			if display_pixels[newY][newX] == (-1, -1) or newX<=0 or newY<=0 or newX>=DISPLAY_WIDTH or newY>=DISPLAY_HEIGHT:
+			if newX<=0 or newY<=0 or newX>=DISPLAY_HEIGHT or newY>=DISPLAY_WIDTH or display_pixels[int(newX)][int(newY)] == (-1, -1):
+				foundObs = 1
 				break
 			lastX, lastY = newX, newY
-		obsCenter = display_pixels[lastY][lastX]
 		
-		return (dist, ())
-		
+		if foundObs:
+			dist = 1000
+		obsCenter = display_pixels[int(lastX)][int(lastY)]
+		return (dist, math.atan2((lastY-obsCenter[1]), (lastX-obsCenter[0])))
+
+	def getState(self):
+		state = []
+		for i in range(0, 360, 18):
+			val = self.getObsInfo(self.bike1.tilt+i)
+			state.append(val[0])
+			state.append(val[1])
+		state.append(self.bike1.velocity)
+		return np.array(state)
+
+	def play_stepAI(self, action):
+		game.display.blit(TRACK_IMG, (0, 0))
+		game.display.blit(FINISH_LINE, (START_Y-23, START_X-37))
+		#1. Collecting user input
+		for event in pygame.event.get():
+			if event.type == pygame.QUIT:
+				pygame.quit()
+				quit()
+		if action == 0:
+			#press w
+			self.bike1.accelerate()
+		elif action == 1:
+			#press s
+			self.bike1.decelerate()
+		elif action == 2:
+			#press a
+			self.bike1.rotate(0)
+		elif action == 3:
+			#press d
+			self.bike1.rotate(1)
+		elif action == 4:
+			#press w and a
+			self.bike1.accelerate()
+			self.bike1.rotate(0)
+		elif action == 5:
+			# press w and d
+			self.bik1.accelerate()
+			self.bike1.rotate(1)
+		elif action == 6:
+			#press s and a
+			self.bike1.decelerate()
+			self.bike1.rotate(0)
+		elif action == 7:
+			#press s and d
+			self.bike1.decelerate()
+			self.bike1.rotate(1)
+		#else if nothing is pressed do nothing
+
+		#update UI and Clock
+		self.bike1.move()
+		self.update_ui()
+		self.clock.tick(CLOCK_SPEED)
+		return self.getState()
 
 	def play_step(self):
 		game.display.blit(TRACK_IMG, (0, 0))
-		game.display.blit(FINISH_LINE, (START_X-23, START_Y-37))
+		game.display.blit(FINISH_LINE, (START_Y-23, START_X-37))
 		#1. Collecting user input
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
